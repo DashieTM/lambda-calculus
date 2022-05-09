@@ -9,27 +9,74 @@ definedVars = []
 
 -- rename lambda
 alphareduce (Var x) = (Var x)
---alphareduce (Abs x y) = x 
+alphareduce (Abs z (App (Var x) (Var y)))
+    | (Var z) == (Var x) && (Var x) == (Var y) = (Abs ((++) z "1") (App (Var ((++) z "1")) (Var y)))
+    | (Var z) == (Var y) && (Var x) == (Var y) = (Abs ((++) z "1") (App (Var x) (Var ((++) z "1"))))
+
 alphareduce (App (Abs x (Var y)) (Var z))
     | (Var x) == (Var z) = (App (Abs ((++) x "1") (Var y)) (Var z))
     | otherwise = (App (Abs x (Var y)) (Var z))
+
+alphareduce (App (Abs x (Abs a b)) (Var z))
+    | isInside z b = (App (Abs (x) (Abs a b)) (Var ((++) z "1")))
+    | otherwise = (App (Abs x (Abs a b)) (Var z))
+
+alphareduce (App x y) = (App (alphareduce x) (alphareduce y))
+
+alphareduce (Abs x y) = (Abs x (alphareduce y))
+
+
 alphareduce (App (Var z) (Abs x (Var y) )) = (App (Var z) (Abs x (Var y)))
 
 -- parse parameter into lambda
 betareduce (Var x) = (Var x)
---betareduce (Abs x y) = y
-betareduce (App (Abs x (Var y) ) z) = z
-betareduce (App (Abs x y) z) = reduce (App(reduce y) z)
-betareduce (App (Var z) (Abs x (Var y))) = reduce (App (Var z) (reduce (Abs x (Var y))))
-betareduce (App (Var z) (Abs x y)) =  reduce (App (Var z) (reduce (Abs x y)))
+betareduce (Abs x y) = (Abs x (reduce y))
+betareduce (Abs a (Abs b (App (Var c) (Var d) )))
+    | (Var a) == (Var c) = (Abs a (App (Var a) (Var d)))
+    | (Var a) == (Var d) = (Abs a (App (Var a) (Var c)))
+    | otherwise = (Abs a (Abs b (App (Var c) (Var d) )))
+betareduce (App (Abs x (Var y)) (Var z)) = (substitute (Var x) (Var z) (Abs x (Var y)))
+betareduce (App (Abs x (Var y) ) z) = (App z (Var y))
+betareduce (App (Abs x y) z) = (App(reduce y) z)
+betareduce (App (Var z) (Abs x (Var y))) = (App (Var z) (reduce (Abs x (Var y))))
+betareduce (App (Var z) (Abs x y)) = (App (Var z) (reduce (Abs x y)))
 
 -- variables to calculation
 deltareduce (Var x) = (Var x)
 --deltareduce (Abs x y) = x
 --deltareduce (App x y) = undefined
 
+substitute (Var a) (Var b) (Var c)
+    | (Var c) == (Var a) = (Var b)
+    | otherwise = (Var c)
+
+substitute (Var a) (Var b) (App x y)
+    | x == (Var a) && y == (Var a) = (App (Var b) (Var b))
+    | x == (Var a) = (App (Var b) (substitute (Var a) (Var b) y))
+    | y == (Var a) = (App (substitute (Var a) (Var b) x) (Var b))
+    |otherwise = (App (substitute (Var a) (Var b) x) (substitute (Var a) (Var b) y)) 
+
+substitute (Var a) (Var b) (Abs x y)
+    |  y == (Var x) = (Var b)
+    | otherwise = (Abs x (substitute (Var a) (Var b) y)) 
+
+
+isBeta (Var x) = True
+isBeta (App (Abs x (Var y)) z) = False
+isBeta (App (Var x) (Var y)) = True
+isBeta (App x y) = isBeta x && isBeta y
+isBeta (Abs x (Var y)) = True
+isBeta (Abs z (App (Var x) (Var y))) = True
+--isBeta (Abs x y) = isBeta y
+--isBeta  (App x y) = False
+isBeta (Abs x y) = False
 
 isBound (App (Abs x y) (Var z)) = x == z
+
+isInside x (App a b)
+    | (Var x) == a = True
+    | (Var x) == b = True
+    | otherwise = isInside x a || isInside x b
 
 contains _ [] = False
 contains n (x:xs)
@@ -44,21 +91,24 @@ reduce (Var x)
     | otherwise = (Var x)
 
 reduce (App (Abs x y) z)
-    | isBound (App (Abs x y ) z) = reduce (betareduce (alphareduce (App (Abs x y ) z)))
-    | otherwise = reduce (betareduce (App (Abs x y) z))
+    | isBeta (App (Abs x y) z) = (App (Abs x y) z)
+ --   | isBound (App (Abs x y ) z) = reduce (betareduce (alphareduce (App (Abs x y ) z)))
+    | otherwise = reduce (betareduce (alphareduce (App (Abs x y) z)))
 
 reduce (App (Var z) (Abs x y))
-    | isBound (App (Var z) (Abs x y)) = betareduce (alphareduce (App (Var z) (Abs x y)))
-    | otherwise = betareduce (App (Var z) (Abs x y))
-
-reduce (App (App x y) z) = reduce (App(reduce (App x y)) z)
+    | isBeta (App (Var z) (Abs x y)) = (App (Var z) (Abs x y))
+    | isBound (App (Var z) (Abs x y)) = reduce (betareduce (alphareduce (App (Var z) (Abs x y))))
+    | otherwise = reduce (betareduce (alphareduce (App (Var z) (Abs x y))))
 
 reduce (App (Var z) (App x y)) = reduce (App (Var z) (reduce(App x y)))
 
-reduce (App (Var x) (Var y)) = (App (Var x) (Var y))
+reduce (App x y)
+    | isBeta (App x y) = (App x y)
+    | otherwise = reduce (betareduce (alphareduce (App (reduce x) (reduce y))))
 
-reduce (App x y) = reduce (App (reduce x) (reduce y))
-
+reduce (Abs x y)
+    | isBeta (Abs x y) = (Abs x y)
+    | otherwise = reduce (betareduce (alphareduce (Abs x (reduce y))))
 
 --reduce (Var x Var y) = (App (Var x) (Var y))
 --reduce (App (Var x) (Var y)) = 
