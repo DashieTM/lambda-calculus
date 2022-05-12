@@ -18,8 +18,10 @@ alphareduce (App (Abs x (Var y)) (Var z))
     | otherwise = (App (Abs x (Var y)) (Var z))
 
 alphareduce (App (Abs x (Abs a b)) (Var z))
-    | isInside z b = (App (Abs (x) (Abs a b)) (Var ((++) z "1")))
+    | (Var z) == (Var a) = (App (Abs (x) (Abs ((++) z "1") (substitute (Var a) (Var ((++) z "1")) b))) (Var  z))
     | otherwise = (App (Abs x (Abs a b)) (Var z))
+
+-- | isInside z b = (App (Abs (x) (Abs a b)) (Var ((++) z "1")))
 
 alphareduce (App x y) = (App (alphareduce x) (alphareduce y))
 
@@ -37,6 +39,10 @@ betareduce (Abs a (Abs b (App (Var c) (Var d) )))
     | otherwise = (Abs a (Abs b (App (Var c) (Var d) )))
 betareduce (App (Abs x (Var y)) (Var z)) = (substitute (Var x) (Var z) (Abs x (Var y)))
 betareduce (App (Abs x (Var y) ) z) = (App z (Var y))
+betareduce (App (Abs x y) (Var z)) = ((substitute (Var x) (Var z) (Abs x y)))
+betareduce (App (Abs a b) (Abs c (Var d)))
+    | (Var c) == (Var d) && isInside c b = (Abs c (Var d))
+    | otherwise =  (App (Abs a b) (reduce(Abs c (Var d))))
 betareduce (App (Abs x y) z) = (App(reduce y) z)
 betareduce (App (Var z) (Abs x (Var y))) = (App (Var z) (reduce (Abs x (Var y))))
 betareduce (App (Var z) (Abs x y)) = (App (Var z) (reduce (Abs x y)))
@@ -58,7 +64,8 @@ substitute (Var a) (Var b) (App x y)
 
 substitute (Var a) (Var b) (Abs x y)
     |  y == (Var x) = (Var b)
-    | otherwise = (Abs x (substitute (Var a) (Var b) y)) 
+    | (Var a) == (Var x) = (substitute (Var a) (Var b) y)
+    | otherwise = (Abs x (substitute (Var a) (Var b) y))
 
 
 isBeta (Var x) = True
@@ -89,6 +96,11 @@ containsVars n = contains n definedVars
 reduce (Var x)
     | containsVars (Var x) = reduce (deltareduce (Var x))
     | otherwise = (Var x)
+
+reduce (App (Abs a b) (Abs c d))
+ --   | isBeta (App (Abs a b) (Abs c d)) = (App (Abs a b) (Abs c d))
+ --   | isBound (App (Abs x y ) z) = reduce (betareduce (alphareduce (App (Abs x y ) z)))
+    | otherwise = reduce (betareduce (alphareduce (App (Abs a b) (Abs c d))))
 
 reduce (App (Abs x y) z)
     | isBeta (App (Abs x y) z) = (App (Abs x y) z)
