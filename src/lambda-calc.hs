@@ -5,7 +5,8 @@ data Term = Var Id   -- Variables
     | App Term Term  -- Applications
     deriving (Show, Eq)
 
-definedVars = []
+definedVars :: [(Term,Term)]
+definedVars = [((Var "test"),(Abs "hey" (Var "hey")))]
 
 -- rename lambda
 alphareduce (Var x) = (Var x)
@@ -26,9 +27,13 @@ betareduce (App x y) = (App x y)
 
 
 -- variables to calculation
-deltareduce (Var x) = (Var x)
---deltareduce (Abs x y) = x
---deltareduce (App x y) = undefined
+deltareduce x
+    | frs (containsVars x) = do
+        let var = sec (containsVars x)
+        substitute (frs var) (sec var) x
+    | otherwise = x
+
+deltest x =  (containsVars x)
 
 substitute :: Term -> Term -> Term -> Term
 substitute (Var a) b (Var c)
@@ -39,16 +44,12 @@ substitute (Var a) b (Abs c d)
     | (isInsideSub (Var a) d) = (Abs c (substitute (Var a) b d))
     | otherwise = (Abs c d)
 
-substitute (Var a) b (App c (Var d)) = (App (substitute (Var a) b c ) (Var d))
 substitute (Var a) b (App c d) = (App (substitute (Var a) b c ) (substitute (Var a) b d ))
 
-
---  | otherwise = (App (substitute (Var a) (App b c) x) (substitute (Var a) (App b c) y))
 
 isBeta (App (Abs x y) z) = True
 isBeta (App (App x y) z) = True
 isBeta _ = False
-
 
 isBound (App (Abs x y) (Var z)) = x == z
 
@@ -80,21 +81,36 @@ isInsideAlp (Var x) (Abs a b) = isInsideAlp (Var x) b
 
 isInsideAlp (Var x) (Var a) = False
 
+isInsideDel :: Term -> Term -> Bool
+
+isInsideDel (Var x) (App a b) = isInsideDel (Var x) a || isInsideDel (Var x) b
+
+isInsideDel (Var x) (Abs a b) = isInsideDel (Var x) b
+
+isInsideDel (Var x) (Var a)
+    | x == a = True
+    | otherwise = False
 
 isVar (Var x) = True
 isVar x = False
 
-contains _ [] = False
+frs (a,b) = a
+sec (a,b) = b
+
+
+contains :: Term -> [(Term,Term)] -> (Bool,(Term,Term))
+contains _ [] = (False,(Var "-1", Var "-1"))
 contains n (x:xs)
-  | x == n = True
+  | isInsideDel (frs x) n = (True,x)
   | otherwise = contains n xs
 
 containsVars n = contains n definedVars
 
+
 -- parse a lambda
 reduce x
-    | isBeta (betareduce (alphareduce x)) = reduce (betareduce (alphareduce x))
-    | otherwise = (betareduce (alphareduce x))
+    | isBeta (betareduce (alphareduce (deltareduce x))) = reduce (betareduce (alphareduce (deltareduce x)))
+    | otherwise = (betareduce (alphareduce (deltareduce x)))
 
 
 -- `(λx.x) a` reduces to `a`
@@ -133,9 +149,10 @@ reduce x
 
 ------------------------------------------------
 
--- I simply do not understand lambda calculus.... I really tried
--- this is just a part of the code that I tried to do
--- I eventually made some progress, but I had trouble understanding what exactly was right and what wasn't
+-- I had a hard time understanding how exactly lambda calculus works
+-- (problematic was also the app implementation, which is essentially just brackets....)
+-- below you can find all the different variations that I have tried
+-- At least the basics should now work
 
 --reduce (App (Abs a b) (Abs c d))
 --    | isBeta (App (Abs a b) (Abs c d)) = (App (Abs a b) (Abs c d))
