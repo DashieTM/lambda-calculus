@@ -25,13 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Lambda_interpreter
   other-modules:
       Paths_lambda_calculus
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
+    , text
   default-language: Haskell2010
 
 executable lambda-calculus-exe
@@ -43,7 +44,11 @@ executable lambda-calculus-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , gi-gtk ==3.0.*
+    , gi-gtk-hs
+    , haskell-gi-base
     , lambda-calculus
+    , text
   default-language: Haskell2010
 
 test-suite lambda-calculus-test
@@ -55,6 +60,9 @@ test-suite lambda-calculus-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , hspec
     , lambda-calculus
+    , text
   default-language: Haskell2010

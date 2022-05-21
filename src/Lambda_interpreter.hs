@@ -1,9 +1,17 @@
+module Lambda_interpreter where
+
+-- Lambda_Int (*)
+
+import Data.Char
+import qualified Data.Text as T
+import Data.Bits (Bits(xor))
+
 type Id = String
 
 data Term = Var Id   -- Variables
     | Abs Id Term    -- Abstractions 
     | App Term Term  -- Applications
-    deriving (Show, Eq)
+    deriving (Show, Eq, Read)
 
 definedVars :: [(Term,Term)]
 definedVars = [((Var "test"),(Abs "hey" (Var "hey")))]
@@ -108,11 +116,90 @@ containsVars n = contains n definedVars
 
 
 -- parse a lambda
+reduce :: Term -> Term
 reduce x
     | isBeta (betareduce (alphareduce (deltareduce x))) = reduce (betareduce (alphareduce (deltareduce x)))
     | otherwise = (betareduce (alphareduce (deltareduce x)))
 
+convert :: String -> IO ()
+convert x = print (tokenize x)
 
+data Token = TokAbs
+           | TokApp
+           | TokVar
+           | Tokleft
+           | Tokright
+           | TokPrep
+           | TokString Id
+    deriving (Show, Eq)
+
+tokenize :: String -> [Token]
+tokenize [] = []
+tokenize (c : cs) 
+    | c == '"'  = tokenizeString cs
+    | c == '('  = tokenize cs
+    | c == ')'  = tokenize cs
+    | isAlpha c = tokenizeTerm ([c]++cs)
+    | isSpace c = tokenize cs
+    | otherwise = error $ "Cannot tokenize " ++ [c]
+
+checkChar :: Char -> Bool
+checkChar x
+    | x == 'A' || x == 'V' = True
+    | otherwise = False 
+
+tokenizeString :: String -> [Token]
+tokenizeString [] = []
+tokenizeString (x : xs)
+    | isAlpha x = do
+            let str = ([x] ++ checkString xs)
+            let len = (length str) - 1
+            (TokString str) : tokenizeString (drop len xs) 
+    | x == '"'  || x == '\\' = tokenize xs
+    | otherwise = error $ "Cannot tokenize -> missing quote after" ++ [x]
+
+
+checkString [] = []
+checkString (x : xs)
+    | isAlpha x = [x] ++ checkString xs
+    | otherwise = []
+
+tokenizeTerm :: [Char] -> [Token]
+tokenizeTerm [] = []
+tokenizeTerm (x : xs)
+    | x == 'A' && head xs == 'p' && (head (drop 1 xs)) == 'p' = TokApp : tokenize (drop 2 xs)
+    | x == 'A' && head xs == 'b' && (head (drop 1 xs)) == 's' = TokAbs : tokenize (drop 2 xs)
+    | x == 'V' && head xs == 'a' && (head (drop 1 xs)) == 'r' = TokVar : tokenize (drop 2 xs)
+    | otherwise = error $ "Cannot tokenize -> not a term" ++ [x]
+
+parse :: ([Token],Integer) -> Term
+parse ((x : xs), y)
+    | x == Tokright = parse xs
+    | x == TokApp = (App (parse xs,lookAhead))
+    | x == TokAbs = (Abs (parse xs))
+    | x == TokVar = parse xs
+    | x == (TokString y) = (Var y)
+
+lookAhead ::[Token] -> Bool
+lookAhead (x:xs)
+    | x == TokAbs = True
+    | x == TokApp = True
+    | x == TokVar = True
+    | x == Tokleft = True
+    | x == Tokright = True
+    | x == TokPrep = True
+    | x == (TokString Id) = True
+    | otherwise = False
+
+
+---- go ask fahrhad
+---- how i parse, me no comprende
+-------------------------------------------
+----tests
+
+
+
+-------------------------------------------
 -- `(λx.x) a` reduces to `a`
 -- >>> reduce (App (Abs "x" (Var "x")) (Var "a")) == (Var "a")
 -- True

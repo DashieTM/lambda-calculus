@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- text 
 
 library:
   source-dirs: src
@@ -35,6 +36,11 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - lambda-calculus
+    - gi-gtk == 3.0.*
+    - gi-gtk-hs
+    - haskell-gi-base
+    - text
+
 
 tests:
   lambda-calculus-test:
@@ -46,3 +52,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - lambda-calculus
+    - hspec
+    - QuickCheck
