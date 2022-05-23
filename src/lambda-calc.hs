@@ -1,22 +1,14 @@
-module Lambda_interpreter where
 
--- Lambda_Int (*)
-
-import Data.Char
-import qualified Data.Text as T
-import Data.Bits (Bits(xor))
-import Control.Concurrent (yield)
 
 type Id = String
+
 
 data Term = Var Id   -- Variables
     | Abs Id Term    -- Abstractions 
     | App Term Term  -- Applications
-    | Empty
-    deriving (Show, Eq, Read)
+    deriving (Show, Eq)
 
-definedVars :: [(Term,Term)]
-definedVars = [((Var "test"),(Abs "hey" (Var "hey")))]
+definedVars = []
 
 -- rename lambda
 alphareduce (Var x) = (Var x)
@@ -37,13 +29,9 @@ betareduce (App x y) = (App x y)
 
 
 -- variables to calculation
-deltareduce x
-    | frs (containsVars x) = do
-        let var = sec (containsVars x)
-        substitute (frs var) (sec var) x
-    | otherwise = x
-
-deltest x =  (containsVars x)
+deltareduce (Var x) = (Var x)
+--deltareduce (Abs x y) = x
+--deltareduce (App x y) = undefined
 
 substitute :: Term -> Term -> Term -> Term
 substitute (Var a) b (Var c)
@@ -54,12 +42,16 @@ substitute (Var a) b (Abs c d)
     | (isInsideSub (Var a) d) = (Abs c (substitute (Var a) b d))
     | otherwise = (Abs c d)
 
+substitute (Var a) b (App c (Var d)) = (App (substitute (Var a) b c ) (Var d))
 substitute (Var a) b (App c d) = (App (substitute (Var a) b c ) (substitute (Var a) b d ))
 
+
+--  | otherwise = (App (substitute (Var a) (App b c) x) (substitute (Var a) (App b c) y))
 
 isBeta (App (Abs x y) z) = True
 isBeta (App (App x y) z) = True
 isBeta _ = False
+
 
 isBound (App (Abs x y) (Var z)) = x == z
 
@@ -91,140 +83,23 @@ isInsideAlp (Var x) (Abs a b) = isInsideAlp (Var x) b
 
 isInsideAlp (Var x) (Var a) = False
 
-isInsideDel :: Term -> Term -> Bool
-
-isInsideDel (Var x) (App a b) = isInsideDel (Var x) a || isInsideDel (Var x) b
-
-isInsideDel (Var x) (Abs a b) = isInsideDel (Var x) b
-
-isInsideDel (Var x) (Var a)
-    | x == a = True
-    | otherwise = False
 
 isVar (Var x) = True
 isVar x = False
 
-frs (a,b) = a
-sec (a,b) = b
-
-
-contains :: Term -> [(Term,Term)] -> (Bool,(Term,Term))
-contains _ [] = (False,(Var "-1", Var "-1"))
+contains _ [] = False
 contains n (x:xs)
-  | isInsideDel (frs x) n = (True,x)
+  | x == n = True
   | otherwise = contains n xs
 
 containsVars n = contains n definedVars
 
-
 -- parse a lambda
-reduce :: Term -> Term
 reduce x
-    | isBeta (betareduce (alphareduce (deltareduce x))) = reduce (betareduce (alphareduce (deltareduce x)))
-    | otherwise = (betareduce (alphareduce (deltareduce x)))
-
-convert :: String -> IO ()
---convert x = print (reduce(head(parse (tokenize x))))
---convert x = do
---        print (head(frs(parse (tokenize x )[] 0)))
---        print (sec(parse (tokenize x )[] 0))
---convert x = print (tokenize x)
-convert x = do
-    let tokenstring = tokenize x 
-    let depthoftree = checkTreeDepth tokenstring
-    print tokenstring
-    print depthoftree
-    print (reduce(head(parse tokenstring depthoftree 0)))
-
-data Token = TokAbs
-           | TokApp
-           | TokVar
-           | Tokright
-           | Tokleft
-           | TokString Id
-    deriving (Show, Eq)
-
-tokenize :: String -> [Token]
-tokenize [] = []
-tokenize (c : cs)
-    | c == '"'  = tokenizeString cs
-    | c == '('  = Tokleft : tokenize cs
-    | c == ')'  = Tokright : tokenize cs
-    | isAlpha c = tokenizeTerm ([c]++cs)
-    | isSpace c = tokenize cs
-    | otherwise = error $ "Cannot tokenize " ++ [c]
-
-checkChar :: Char -> Bool
-checkChar x
-    | x == 'A' || x == 'V' = True
-    | otherwise = False
-
-tokenizeString :: String -> [Token]
-tokenizeString [] = []
-tokenizeString (x : xs)
-    | isAlpha x = do
-            let str = ([x] ++ checkString xs)
-            let len = (length str) - 1
-            (TokString str) : tokenizeString (drop len xs)
-    | x == '"'  || x == '\\' = tokenize xs
-    | otherwise = error $ "Cannot tokenize -> missing quote after" ++ [x]
+    | isBeta (betareduce (alphareduce x)) = reduce (betareduce (alphareduce x))
+    | otherwise = (betareduce (alphareduce x))
 
 
-checkString [] = []
-checkString (x : xs)
-    | isAlpha x = [x] ++ checkString xs
-    | otherwise = []
-
-tokenizeTerm :: [Char] -> [Token]
-tokenizeTerm [] = []
-tokenizeTerm (x : xs)
-    | x == 'A' && head xs == 'p' && (head (drop 1 xs)) == 'p' = TokApp : tokenize (drop 2 xs)
-    | x == 'A' && head xs == 'b' && (head (drop 1 xs)) == 's' = TokAbs : tokenize (drop 2 xs)
-    | x == 'V' && head xs == 'a' && (head (drop 1 xs)) == 'r' = TokVar : tokenize (drop 2 xs)
-    | otherwise = error $ "Cannot tokenize -> not a term" ++ [x]
-
-len :: [Int]
-len = []
-
-parse :: [Token] -> [Int] -> Int -> [Term]
-parse [] _ _ = []
-parse (TokString x : xs) ys z = [Var x]
-parse (x : xs) ys z
-    | x == TokApp = [App (head (parse xs ys (z+1)) ) (head (parse (drop (ys !! z) xs )ys (z+1)))]
-  --      let len = ys ++ [depth xs 0 0]
-  --      let len2 = ys ++ [depth (drop (len !! z) xs) 0 0 ]    
-    | x == TokAbs = [Abs (getId (head xs)) (head(parse (drop 1 xs)ys z))]
-    | otherwise = if isEmpty xs then [] else parse xs ys z
-
-getId :: Token -> Id
-getId (TokString x) = x
-getId _ = error $ "Abs needs a string as variable"
-
-depth :: [Token] -> Int -> Int -> Int
-depth [] y z = y
-depth (x : xs) y z
-    | x == Tokright && z > 1 = depth xs (y + 1) (z - 1) --next time I have to make sure that I don't get stuck on left or right again, remember 2hours wasted because of this....
-    | x == Tokright && z == 1 = y + 1
-    | x == Tokleft = depth xs (y + 1) (z + 1)
-    | otherwise = depth xs (y + 1) z
-
-checkTreeDepth :: [Token] -> [Int]
-checkTreeDepth [] = []
-checkTreeDepth (x : xs)
-    | x == TokApp = depth xs 0 0 : checkTreeDepth xs
-    | otherwise = checkTreeDepth xs
-
-isEmpty :: [Token] -> Bool
-isEmpty [] = True
-isEmpty (x:xs) = False
-
--------------------------------------------
-----tests
-
---(App (App (Var "a") (Var "b")) (Var "c"))
---(App (Abs "a" (App (Var "s") (Var "d"))) (Abs "f" (Var "g")))
-
--------------------------------------------
 -- `(λx.x) a` reduces to `a`
 -- >>> reduce (App (Abs "x" (Var "x")) (Var "a")) == (Var "a")
 -- True
@@ -261,10 +136,9 @@ isEmpty (x:xs) = False
 
 ------------------------------------------------
 
--- I had a hard time understanding how exactly lambda calculus works
--- (problematic was also the app implementation, which is essentially just brackets....)
--- below you can find all the different variations that I have tried
--- At least the basics should now work
+-- I simply do not understand lambda calculus.... I really tried
+-- this is just a part of the code that I tried to do
+-- I eventually made some progress, but I had trouble understanding what exactly was right and what wasn't
 
 --reduce (App (Abs a b) (Abs c d))
 --    | isBeta (App (Abs a b) (Abs c d)) = (App (Abs a b) (Abs c d))
@@ -387,21 +261,3 @@ isEmpty (x:xs) = False
 --    | isBeta y = (App x (betareduce (alphareduce y)))
 --    | otherwise = (betareduce (alphareduce (App x y)))
 --leftmostOutermost x = (betareduce (alphareduce x))
---parseSingle :: Token -> Term
---parseSingle (TokString x) = (Var x)
---parseSingle (TokApp) = (App )
-
---lookAhead ::[Token] -> Bool
---lookAhead (x:xs)
---    | x == TokAbs = True
---    | x == TokApp = True
---    | x == TokVar = True
---    | x == Tokleft = True
---    | x == Tokright = True
---    | x == TokPrep = True
---    | x == (TokString Id) = True
---    | otherwise = False
-
-
----- go ask fahrhad
----- how i parse, me no comprende
