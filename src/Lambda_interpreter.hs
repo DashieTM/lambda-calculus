@@ -5,12 +5,14 @@ module Lambda_interpreter where
 import Data.Char
 import qualified Data.Text as T
 import Data.Bits (Bits(xor))
+import Control.Concurrent (yield)
 
 type Id = String
 
 data Term = Var Id   -- Variables
     | Abs Id Term    -- Abstractions 
     | App Term Term  -- Applications
+    | Empty
     deriving (Show, Eq, Read)
 
 definedVars :: [(Term,Term)]
@@ -122,23 +124,24 @@ reduce x
     | otherwise = (betareduce (alphareduce (deltareduce x)))
 
 convert :: String -> IO ()
-convert x = print (tokenize x)
+--convert x = print (reduce(head(parse (tokenize x))))
+convert x = print (head(parse (tokenize x)))
+--convert x = print (tokenize x)
 
 data Token = TokAbs
            | TokApp
            | TokVar
-           | Tokleft
            | Tokright
-           | TokPrep
+           | Tokleft
            | TokString Id
     deriving (Show, Eq)
 
 tokenize :: String -> [Token]
 tokenize [] = []
-tokenize (c : cs) 
+tokenize (c : cs)
     | c == '"'  = tokenizeString cs
-    | c == '('  = tokenize cs
-    | c == ')'  = tokenize cs
+    | c == '('  = Tokleft : tokenize cs
+    | c == ')'  = Tokright : tokenize cs
     | isAlpha c = tokenizeTerm ([c]++cs)
     | isSpace c = tokenize cs
     | otherwise = error $ "Cannot tokenize " ++ [c]
@@ -146,7 +149,7 @@ tokenize (c : cs)
 checkChar :: Char -> Bool
 checkChar x
     | x == 'A' || x == 'V' = True
-    | otherwise = False 
+    | otherwise = False
 
 tokenizeString :: String -> [Token]
 tokenizeString [] = []
@@ -154,7 +157,7 @@ tokenizeString (x : xs)
     | isAlpha x = do
             let str = ([x] ++ checkString xs)
             let len = (length str) - 1
-            (TokString str) : tokenizeString (drop len xs) 
+            (TokString str) : tokenizeString (drop len xs)
     | x == '"'  || x == '\\' = tokenize xs
     | otherwise = error $ "Cannot tokenize -> missing quote after" ++ [x]
 
@@ -172,32 +175,44 @@ tokenizeTerm (x : xs)
     | x == 'V' && head xs == 'a' && (head (drop 1 xs)) == 'r' = TokVar : tokenize (drop 2 xs)
     | otherwise = error $ "Cannot tokenize -> not a term" ++ [x]
 
-parse :: ([Token],Integer) -> Term
-parse ((x : xs), y)
-    | x == Tokright = parse xs
-    | x == TokApp = (App (parse xs,lookAhead))
-    | x == TokAbs = (Abs (parse xs))
-    | x == TokVar = parse xs
-    | x == (TokString y) = (Var y)
+len :: [Int]
+len = []
 
-lookAhead ::[Token] -> Bool
-lookAhead (x:xs)
-    | x == TokAbs = True
-    | x == TokApp = True
-    | x == TokVar = True
-    | x == Tokleft = True
-    | x == Tokright = True
-    | x == TokPrep = True
-    | x == (TokString Id) = True
-    | otherwise = False
+parse :: [Token] -> [Term]
+parse [] = []
+parse (TokString x : xs) = [Var x]
+parse (TokApp : xs) = [App (head (parse xs)) (head (parse (drop (head len) xs)))]
+parse (x : xs)
+    | x == TokApp = do
+        let len = [depth xs 0 0]
+        [App (head (parse xs)) (head (parse (drop (head len) xs)))] --where len = [depth xs 0 0]
+    | x == TokAbs = [Abs (getId (head xs)) (head(parse (drop 1 xs)))]
+    | otherwise = if (isEmpty xs) then [] else parse xs
+
+getId :: Token -> Id
+getId (TokString x) = x
+getId _ = error $ "Abs needs a string as variable"
+
+depth :: [Token] -> Int -> Int -> Int
+depth [] y z = y
+depth (x : xs) y z
+    | x == Tokleft && z > 1 = depth xs (y + 1) (z - 1)
+    | x == Tokleft && z == 1 = y + 1
+    | x == Tokright = depth xs (y + 1) (z + 1)
+    | otherwise = depth xs (y + 1) z
+
+isEmpty :: [Token] -> Bool
+isEmpty [] = True
+isEmpty (x:xs) = False
+
+-- App ::= (App (Var) (Var)) | (App (Abs) (Abs)) | 
 
 
----- go ask fahrhad
----- how i parse, me no comprende
+
 -------------------------------------------
 ----tests
 
-
+--(App (App (Var "a") (Var "b")) (Var "c"))
 
 -------------------------------------------
 -- `(λx.x) a` reduces to `a`
@@ -362,3 +377,21 @@ lookAhead (x:xs)
 --    | isBeta y = (App x (betareduce (alphareduce y)))
 --    | otherwise = (betareduce (alphareduce (App x y)))
 --leftmostOutermost x = (betareduce (alphareduce x))
+--parseSingle :: Token -> Term
+--parseSingle (TokString x) = (Var x)
+--parseSingle (TokApp) = (App )
+
+--lookAhead ::[Token] -> Bool
+--lookAhead (x:xs)
+--    | x == TokAbs = True
+--    | x == TokApp = True
+--    | x == TokVar = True
+--    | x == Tokleft = True
+--    | x == Tokright = True
+--    | x == TokPrep = True
+--    | x == (TokString Id) = True
+--    | otherwise = False
+
+
+---- go ask fahrhad
+---- how i parse, me no comprende
