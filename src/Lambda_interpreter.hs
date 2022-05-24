@@ -179,8 +179,9 @@ tokenizeTerm :: [Char] -> [Token]
 tokenizeTerm [] = []
 tokenizeTerm (x : xs)
     | x == 'A' && head xs == 'p' && (head (drop 1 xs)) == 'p' = TokApp : tokenize (drop 2 xs)
-    | x == 'A' && head xs == 'b' && (head (drop 1 xs)) == 's' = TokAbs : tokenize (drop 2 xs)
-    | x == 'V' && head xs == 'a' && (head (drop 1 xs)) == 'r' = TokVar : tokenize (drop 2 xs)
+    -- x == 'A' && head xs == 'b' && (head (drop 1 xs)) == 's' = TokAbs : tokenize (drop 2 xs)
+    | x == 'L' = TokAbs : tokenize xs
+    --x == 'V' && head xs == 'a' && (head (drop 1 xs)) == 'r' = TokVar : tokenize (drop 2 xs)
     | otherwise = error $ "Cannot tokenize -> not a term" ++ [x]
 
 len :: [Int]
