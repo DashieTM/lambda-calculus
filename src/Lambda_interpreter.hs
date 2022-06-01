@@ -1,3 +1,6 @@
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
+
 module Lambda_interpreter where
 
 -- Lambda_Int (*)
@@ -106,7 +109,6 @@ isVar x = False
 
 frs (a,b) = a
 sec (a,b) = b
-
 
 contains :: Term -> [(Term,Term)] -> (Bool,(Term,Term))
 contains _ [] = (False,(Var "-1", Var "-1"))
@@ -218,6 +220,36 @@ checkTreeDepth (x : xs)
 isEmpty :: [Token] -> Bool
 isEmpty [] = True
 isEmpty (x:xs) = False
+
+
+newtype Parser a = Parser { runParser :: String -> Maybe (a,String)}
+
+--runParser :: Parser a -> String -> [(a, String)]
+--runParser (P p) str = p str
+
+
+instance Functor Parser where
+fmap f (Parser x) = Parser $ \s -> do
+  (newx, news) <- x s
+  return (newx, news)
+
+instance Applicative Parser where
+  pure x = Parser $ \s -> Just (x,s)
+  
+
+instance Monad Parser where
+  (Parser x) >>= f = Parser $ \s -> do
+  (newx , news) <- x s
+  runParser(f newx) news
+
+instance MonadFail Parser where
+  fail _ = Parser $ \s -> Nothing
+
+class (Applicative f) => Alternative f where
+  empty :: f a 
+  (<|>) :: f a -> f a -> f a
+  some :: f a -> f [a]
+  many :: f a -> f [a]
 
 -------------------------------------------
 ----tests
