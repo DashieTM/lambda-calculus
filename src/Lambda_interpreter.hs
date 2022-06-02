@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Lambda_interpreter where
@@ -116,7 +117,6 @@ isVar x = False
 
 frs (a,b) = a
 sec (a,b) = b
-
 
 contains :: Term -> [(Term,Term)] -> (Bool,(Term,Term))
 contains _ [] = (False,(Var "-1", Var "-1"))
