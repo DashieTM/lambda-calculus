@@ -5,6 +5,7 @@
 import Lambda_interpreter as L
 import qualified GI.Gtk as Gtk
 import qualified Data.Text as T
+import qualified GI.Gtk.Objects.Grid as Gtk
 
 main :: IO ()
 main = do
@@ -16,21 +17,28 @@ main = do
     Gtk.setWindowDefaultHeight win 400
     Gtk.setWindowDefaultWidth win 800
     Gtk.setWindowResizable win True
+    
+
+    grid <- Gtk.gridNew 
+
+    returntext <- Gtk.labelNew (Just "") 
 
     textbox <- Gtk.entryNew
     Gtk.setEntryPlaceholderText textbox "enter lambda"
-    result <- Gtk.onEntryActivate textbox $ do
-            toreduceIO <- Gtk.getEntryBuffer textbox
-            toreduce <- Gtk.getEntryBufferText toreduceIO
-            L.convert (T.unpack toreduce)
+    Gtk.onEntryActivate textbox $ do
+       toreduceIO <- Gtk.getEntryBuffer textbox
+       toreduce <- Gtk.getEntryBufferText toreduceIO
+       geil <- Gtk.labelSetLabel returntext (T.pack $ L.convert (T.unpack toreduce))
+       return geil
 
-    
 
-
-    #add win textbox
+    #attach grid textbox 0 0 5 1
+    #attach grid returntext 1 1 5 1
+    #add win grid
 
     Gtk.onWidgetDestroy win Gtk.mainQuit
     #showAll win
+    returntext <- Gtk.labelNew (Just "") 
     Gtk.main
 
 

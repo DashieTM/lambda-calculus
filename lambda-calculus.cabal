@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Lambda_interpreter
+      Parser
   other-modules:
       Paths_lambda_calculus
   hs-source-dirs:
