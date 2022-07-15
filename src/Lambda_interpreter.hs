@@ -11,6 +11,12 @@ import Data.Bits (Bits(xor))
 import Control.Concurrent (yield)
 import Control.Applicative
 import Parser
+import Control.Exception
+
+data ParserException = InvalidTerm String
+  deriving(Show)
+
+instance Exception ParserException
 
 type Id = String
 
@@ -237,7 +243,7 @@ parseUnit = parseLam <|> parseVar <|> paren parseTerm
 
 --parseLam :: Parser Token
 parseLam = do token $ symbol 'λ'
-              x <- token strVar
+              x <- token parseId
               token $ symbol '.'
               y <- token parseTerm
               return (Abs x y)
@@ -245,7 +251,7 @@ parseLam = do token $ symbol 'λ'
 
 
 parseVar :: Parser Term
-parseVar = Var <$> strVar--do x <- token strVar
+parseVar = Var <$> parseId --do x <- token strVar
            --   return (Var x)
 
 parseTerm = do x <- applyXTimes parseUnit
@@ -253,11 +259,15 @@ parseTerm = do x <- applyXTimes parseUnit
 
 
 parseInput str = case parse parseTerm str of
-                 [] -> error $ str ++ " is not a lambda Term."
+                 [] -> throw $ InvalidTerm $ str ++ " is not a lambda Term."
                  [(x,[])] -> x
-                 [(x,xs)] -> error $ "Managed to parse: " ++ (show x) ++ " but not: " ++ xs
-                 (x:xs)   -> error   "input is nonsense"  
+                 [(x,xs)] -> throw $ InvalidTerm $ "Managed to parse: " ++ (show x) ++ " but not: " ++ xs
+                 (x:xs)   -> throw $ InvalidTerm   "input is nonsense"  
 
+parseId = someOf predefinedValues
+
+predefinedValues :: Parser Char
+predefinedValues= use $ not . (\input -> input `elem` "λ.()" || isSpace input)
 
 -------------------------------------------
 
@@ -268,3 +278,4 @@ parseInput str = case parse parseTerm str of
 --(App (Abs "a" (App (Var "s") (Var "d"))) (Abs "f" (Var "g")))
 
 -------------------------------------------
+

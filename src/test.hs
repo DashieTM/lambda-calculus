@@ -1,4 +1,4 @@
-import Data.Bits (Bits(xor))
+import Data.Bits (Bits(xor, testBit))
 import Control.Concurrent (yield)
 
 
@@ -63,7 +63,7 @@ fold f end (x:xs) = x `f` (fold f end xs)
 foldl' :: (b -> a -> b) -> b -> [a] -> b
 foldl' f end [] = end
 foldl' f end (x:xs) = foldl' f (f end x) xs
-
+-- >>> fold div 1 [1..10]
 --fold div 1 [1..10] would mean x `div` 0 at some point according
 --to the definition.
 --however if you look at foldl, then you see that it would never actually divide by 0.
@@ -105,3 +105,6 @@ instance Monad Maybe2 where
 Just2 a >>>= f = f a
 Nothing2 >>>= f = Nothing2
 
+
+--do noation test
+doTest = (+3) . head . reverse

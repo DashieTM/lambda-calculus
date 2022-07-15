@@ -36,8 +36,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - lambda-calculus
+    - gi-gdk >= 3.0
     - gi-gtk == 3.0.*
     - gi-gtk-hs
+    - open-browser
     - haskell-gi-base
     - text
 
